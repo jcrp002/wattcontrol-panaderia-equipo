@@ -211,6 +211,279 @@ public:
     }
 };
 
+
+// ============================================================================
+// CLASE Negocio: INTEGRACION Y RELACIONES DE POO [PERSONA 2]
+// ============================================================================
+// Modela la Panaderia que gestiona sus cargas energeticas.
+class Negocio {
+private:
+    string nombre;
+
+    // 1. COMPOSICION: El medidor es un objeto directo; su ciclo de vida depende de Negocio.
+    Medidor medidor;
+
+    // 2. AGREGACION: Arreglo de punteros polimorficos a Carga. Las cargas existen fuera.
+    Carga* cargas[MAX_CARGAS];
+    int numCargas;
+
+    // 3. ASOCIACION: Puntero al Mercado. El negocio conoce al mercado para pedir precios.
+    Mercado* mercado;
+
+    // Variables de control de la ultima simulacion
+    float costoConGestor;
+    float costoSinGestor;
+    float energiaConGestor;
+    float energiaSinGestor;
+    int horasSimuladas;
+    int fallasLectura;
+
+public:
+    // Constructor
+    Negocio(string n, Mercado* m) {
+        nombre = n;
+        mercado = m;
+        numCargas = 0;
+        costoConGestor = 0.0;
+        costoSinGestor = 0.0;
+        energiaConGestor = 0.0;
+        energiaSinGestor = 0.0;
+        horasSimuladas = 0;
+        fallasLectura = 0;
+    }
+
+    // Metodo de Agregacion: anade una carga externa al negocio
+    void agregarCarga(Carga* c) {
+        if (numCargas < MAX_CARGAS) {
+            cargas[numCargas] = c;
+            numCargas++;
+        }
+    }
+
+    // Presentacion inicial del negocio
+    void mostrarConfiguracion() {
+        cout << "=====================================================" << endl;
+        cout << " Negocio: " << nombre << " (Panaderia)" << endl;
+        cout << " Potencia Contratada: " << POTENCIA_CONTRATADA << " kW" << endl;
+        cout << " Equipos registrados:" << endl;
+        for (int i = 0; i < numCargas; i++) {
+            cout << "  - " << setw(18) << left << cargas[i]->getNombre()
+                 << right << setw(5) << cargas[i]->getPotencia() << " kW" << endl;
+        }
+        cout << "=====================================================" << endl;
+    }
+
+    // Evaluacion manual polimorfica (Opcion 2 del menu)
+    void evaluarManual(int hora, float precio, float embalses) {
+        cout << "\nEvaluando decision de cada equipo para la lectura:" << endl;
+        cout << "  Hora: " << hora << ":00 | Precio: $" << precio 
+             << " COP/kWh | Embalses: " << embalses << " %" << endl;
+        cout << "-----------------------------------------------------" << endl;
+        
+        float potenciaDemandada = 0.0;
+        for (int i = 0; i < numCargas; i++) {
+            // LLAMADA POLIMORFICA: cada carga evalua su propia regla
+            bool encender = cargas[i]->debeEncender(hora, precio, embalses);
+            cout << "  " << setw(18) << left << cargas[i]->getNombre() << right;
+            if (encender) {
+                cout << "[ENCENDER]" << endl;
+                potenciaDemandada += cargas[i]->getPotencia();
+            } else {
+                cout << "[APAGAR / APLAZAR]" << endl;
+            }
+        }
+        cout << "  Potencia total estimada: " << potenciaDemandada << " kW / " 
+             << POTENCIA_CONTRATADA << " kW contratados." << endl;
+    }
+
+    // REGLA 6: Control de potencia contratada.
+    // Si la potencia acumulada de los equipos encendidos sobrepasa la contratada,
+    // se apaga la carga aplazable de mayor potencia (Horno rotativo) para evitar disparar el breaker.
+    void aplicarControlPotencia(int hora) {
+        float sumaPotencia = 0.0;
+        for (int i = 0; i < numCargas; i++) {
+            if (cargas[i]->estaEncendido()) {
+                sumaPotencia += cargas[i]->getPotencia();
+            }
+        }
+
+        if (sumaPotencia > POTENCIA_CONTRATADA) {
+            cout << " [ALERTA HORA " << setw(2) << hora << "] Sobrecarga detectada (" 
+                 << sumaPotencia << " kW > " << POTENCIA_CONTRATADA 
+                 << " kW). Desconectando carga aplazable mas pesada..." << endl;
+            
+            // Buscar la carga aplazable encendida con mayor consumo y apagarla
+            int idxMayor = -1;
+            float maxPot = 0.0;
+            // Omitimos la primera (cargas[0] es critica)
+            for (int i = 1; i < numCargas; i++) {
+                if (cargas[i]->estaEncendido() && cargas[i]->getPotencia() > maxPot) {
+                    maxPot = cargas[i]->getPotencia();
+                    idxMayor = i;
+                }
+            }
+            if (idxMayor != -1) {
+                cargas[idxMayor]->apagar();
+                cout << "   -> " << cargas[idxMayor]->getNombre() 
+                     << " apagado por proteccion de potencia." << endl;
+            }
+        }
+    }
+
+    // Simulacion de 24 horas continuas (Opcion 3 del menu)
+    void simularDia() {
+        // Reiniciar medidores y estados de las cargas
+        medidor.reiniciar();
+        costoConGestor = 0.0;
+        costoSinGestor = 0.0;
+        energiaConGestor = 0.0;
+        energiaSinGestor = 0.0;
+        horasSimuladas = 0;
+        fallasLectura = 0;
+
+        for (int i = 0; i < numCargas; i++) {
+            cargas[i]->reiniciar();
+        }
+
+        cout << fixed << setprecision(0);
+        cout << "\n================ SIMULACION 24 HORAS: WATTCONTROL PANADERIA ================" << endl;
+        cout << setw(5) << "Hora" << setw(8) << "Precio" << setw(9) << "Embalse";
+        for (int i = 0; i < numCargas; i++) {
+            cout << setw(13) << cargas[i]->getNombre().substr(0, 11);
+        }
+        cout << setw(10) << "Costo(COP)" << endl;
+        cout << "----------------------------------------------------------------------------" << endl;
+
+        for (int h = 0; h < HORAS_DIA; h++) {
+            // ASOCIACION: Consulta de precios y embalses al Mercado
+            float precio = mercado->precioHora(h);
+            float embalses = mercado->nivelEmbalses(h);
+
+            // Escenario SIN GESTOR: todo encendido indiscriminadamente las 24 horas
+            for (int i = 0; i < numCargas; i++) {
+                costoSinGestor += cargas[i]->getPotencia() * precio;
+                energiaSinGestor += cargas[i]->getPotencia();
+            }
+
+            // INSTRUCCION DE CONTROL BREAK: Emergencia por escasez extrema
+            if (precio > PRECIO_ESCASEZ) {
+                cout << setw(5) << h << setw(8) << precio 
+                     << "   [BREAK] PRECIO DE ESCASEZ EXTREMA: Operacion detenida por emergencia." << endl;
+                break;
+            }
+
+            horasSimuladas++;
+
+            // INSTRUCCION DE CONTROL CONTINUE: Falla en telemedicion
+            if (rand() % FALLA_CADA == 0) {
+                fallasLectura++;
+                // Modo seguro: solo opera la carga critica (refrigeracion); aplazables apagadas
+                cargas[0]->encender();
+                for (int i = 1; i < numCargas; i++) {
+                    cargas[i]->apagar();
+                }
+                float costoFalla = cargas[0]->costoHora(precio);
+                costoConGestor += costoFalla;
+                energiaConGestor += cargas[0]->getPotencia();
+                medidor.registrarConsumo(cargas[0]->getPotencia(), costoFalla);
+
+                cout << setw(5) << h << setw(8) << "--" << setw(9) << "--"
+                     << "   [CONTINUE] Falla sensor: Solo refrigeracion activa." << endl;
+                continue;
+            }
+
+            // Escenario CON GESTOR INTELIGENTE:
+            // 1. Evaluacion polimorfica individual
+            for (int i = 0; i < numCargas; i++) {
+                if (cargas[i]->debeEncender(h, precio, embalses)) {
+                    cargas[i]->encender();
+                } else {
+                    cargas[i]->apagar();
+                }
+            }
+
+            // 2. Aplicacion de la Regla 6: Control de potencia contratada
+            aplicarControlPotencia(h);
+
+            // 3. Calculo de costos de la hora
+            float costoHoraActual = 0.0;
+            float energiaHoraActual = 0.0;
+            for (int i = 0; i < numCargas; i++) {
+                if (cargas[i]->estaEncendido()) {
+                    costoHoraActual += cargas[i]->costoHora(precio);
+                    energiaHoraActual += cargas[i]->getPotencia();
+                }
+            }
+
+            costoConGestor += costoHoraActual;
+            energiaConGestor += energiaHoraActual;
+            medidor.registrarConsumo(energiaHoraActual, costoHoraActual);
+
+            // Impresion de fila horaria
+            cout << setw(5) << h << setw(8) << precio << setw(8) << embalses << "%";
+            for (int i = 0; i < numCargas; i++) {
+                cout << setw(13) << (cargas[i]->estaEncendido() ? "ON" : "off");
+            }
+            cout << setw(10) << costoHoraActual << endl;
+        }
+
+        cout << "----------------------------------------------------------------------------" << endl;
+        cout << "Simulacion completada con exito. Consulte el resumen con la opcion 4." << endl;
+    }
+
+    // Resumen analitico y calculo financiero de ahorro (Opcion 4 del menu)
+    void resumen() {
+        cout << fixed << setprecision(0);
+        cout << "\n============================================================" << endl;
+        cout << "        RESUMEN FINANCIERO Y ENERGETICO - WATTCONTROL        " << endl;
+        cout << "                   Panaderia Central                        " << endl;
+        cout << "============================================================" << endl;
+        cout << "Horas simuladas: " << horasSimuladas << " de " << HORAS_DIA 
+             << " | Fallas de medicion controladas: " << fallasLectura << endl;
+        cout << "\n--- Detalle por Equipo ---" << endl;
+        
+        bool produccionCompleta = true;
+        for (int i = 0; i < numCargas; i++) {
+            float kwh = cargas[i]->getHorasUso() * cargas[i]->getPotencia();
+            cout << " - " << setw(18) << left << cargas[i]->getNombre() << right
+                 << setw(3) << cargas[i]->getHorasUso() << " h operadas ("
+                 << setw(5) << kwh << " kWh consumidos)" << endl;
+
+            // Verificacion de cumplimiento de horas minimas requeridas
+            if (i > 0) { // Cargas aplazables
+                CargaAplazable* cap = dynamic_cast<CargaAplazable*>(cargas[i]);
+                if (cap && cargas[i]->getHorasUso() < cap->getHorasMinimas()) {
+                    cout << "   [ALERTA PRODUCCION] " << cargas[i]->getNombre() 
+                         << " no alcanzo el minimo de " << cap->getHorasMinimas() << " horas." << endl;
+                    produccionCompleta = false;
+                }
+            }
+        }
+
+        if (produccionCompleta) {
+            cout << "\n>> Cumplimiento operativo: TANDAS DE PAN COMPLETADAS AL 100% <<" << endl;
+        } else {
+            cout << "\n>> Cumplimiento operativo: ALERTA DE PRODUCCION PARCIAL <<" << endl;
+        }
+
+        // Metricas registradas por el Medidor (Composicion)
+        cout << "\n--- Balance Energetico y Economico ---" << endl;
+        cout << "Energia sin gestor:  " << setw(8) << energiaSinGestor << " kWh" << endl;
+        cout << "Energia con gestor:  " << setw(8) << medidor.getEnergiaTotal() << " kWh" << endl;
+        cout << "Costo sin gestor:   $" << setw(8) << costoSinGestor << " COP" << endl;
+        cout << "Costo con gestor:   $" << setw(8) << costoConGestor << " COP" << endl;
+        
+        float ahorroCOP = costoSinGestor - costoConGestor;
+        float ahorroPorc = (costoSinGestor > 0) ? (ahorroCOP / costoSinGestor * 100.0) : 0.0;
+
+        cout << "------------------------------------------------------------" << endl;
+        cout << "AHORRO ECONOMICO:   $" << setw(8) << ahorroCOP << " COP (" 
+             << setprecision(1) << ahorroPorc << " %)" << endl;
+        cout << "============================================================" << endl;
+    }
+};
+
+
 // ============================================================================
 // FUNCION PRINCIPAL Y MENU DE USUARIO [PERSONA 1]
 // ============================================================================
