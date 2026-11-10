@@ -148,11 +148,68 @@ public:
 }; 
 
 
+// ============================================================================
+// CLASE Medidor: COMPOSICION con Negocio [PERSONA 2]
+// ============================================================================
+// Representa el medidor bidireccional / inteligente que registra energia y costos.
+// Nace y muere como parte integral del Negocio.
+class Medidor {
+private:
+    float energiaTotalKWh; // Acumulador de energia en kilovatios-hora
+    float costoTotalCOP;   // Acumulador financiero en pesos colombianos
 
+public:
+    Medidor() {
+        energiaTotalKWh = 0.0;
+        costoTotalCOP = 0.0;
+    }
 
+    void registrarConsumo(float kwh, float costo) {
+        energiaTotalKWh += kwh;
+        costoTotalCOP += costo;
+    }
 
+    void reiniciar() {
+        energiaTotalKWh = 0.0;
+        costoTotalCOP = 0.0;
+    }
 
+    float getEnergiaTotal() { return energiaTotalKWh; }
+    float getCostoTotal() { return costoTotalCOP; }
+};
 
+// ============================================================================
+// CLASE Mercado: ASOCIACION con Negocio [PERSONA 2]
+// ============================================================================
+// Simula el mercado mayorista de energia (precios de bolsa segun XM Colombia)
+// y el estado hidrologico nacional (nivel de embalses).
+class Mercado {
+public:
+    // Retorna el precio del kWh segun la franja horaria colombiana
+    float precioHora(int hora) {
+        int minimo, maximo;
+        if (hora <= 6) {               // Madrugada
+            minimo = 398; maximo = 640;
+        } else if (hora <= 14) {        // Manana y mediodia
+            minimo = 456; maximo = 970;
+        } else if (hora <= 17) {        // Tarde
+            minimo = 596; maximo = 1040;
+        } else if (hora <= 20) {        // Hora pico
+            minimo = 705; maximo = 1612;
+        } else {                        // Noche
+            minimo = 565; maximo = 970;
+        }
+        return minimo + rand() % (maximo - minimo + 1);
+    }
+
+    // Simula el porcentaje de volumen util de los embalses hidroelectricos (0 a 100 %)
+    float nivelEmbalses(int hora) {
+        // En periodo de estiaje / El Nino, fluctua alrededor del 42 % con leves variaciones
+        float base = 42.0;
+        float variacion = (hora % 5) - 2.0; // Variacion entre -2 y +2 %
+        return base + variacion;
+    }
+};
 
 // ============================================================================
 // FUNCION PRINCIPAL Y MENU DE USUARIO [PERSONA 1]
