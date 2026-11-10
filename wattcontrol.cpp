@@ -149,7 +149,7 @@ public:
 
 
 // ============================================================================
-// CLASE Medidor: COMPOSICION con Negocio [PERSONA 2]
+// CLASE Medidor: COMPOSICION con Negocio
 // ============================================================================
 // Representa el medidor bidireccional / inteligente que registra energia y costos.
 // Nace y muere como parte integral del Negocio.
@@ -179,7 +179,7 @@ public:
 };
 
 // ============================================================================
-// CLASE Mercado: ASOCIACION con Negocio [PERSONA 2]
+// CLASE Mercado: ASOCIACION con Negocio
 // ============================================================================
 // Simula el mercado mayorista de energia (precios de bolsa segun XM Colombia)
 // y el estado hidrologico nacional (nivel de embalses).
@@ -213,7 +213,7 @@ public:
 
 
 // ============================================================================
-// CLASE Negocio: INTEGRACION Y RELACIONES DE POO [PERSONA 2]
+// CLASE Negocio: INTEGRACION Y RELACIONES DE POO
 // ============================================================================
 // Modela la Panaderia que gestiona sus cargas energeticas.
 class Negocio {
