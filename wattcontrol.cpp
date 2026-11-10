@@ -145,4 +145,124 @@ public:
         // En condiciones normales y con tarifa favorable, se autoriza encendido
         return true;
     }
-};
+}; 
+
+
+
+
+
+
+
+
+// ============================================================================
+// FUNCION PRINCIPAL Y MENU DE USUARIO [PERSONA 1]
+// ============================================================================
+int main() {
+    // Fijar semilla pseudoaleatoria reproducible para la evaluacion del docente
+    srand(SEMILLA);
+
+    // Instanciacion de objetos del sistema
+    Mercado mercado; // Asociacion
+
+    // Cargas de la Panaderia:
+    // Carga critica: Refrigeracion (no se apaga)
+    CargaCritica refrigeracion("Refrigeracion", POTENCIA_REFRIGERACION);
+    // Cargas aplazables: Horno rotativo y Amasadora industrial con sus horas minimas requeridas
+    CargaAplazable horno("Horno Rotativo", POTENCIA_HORNO, HORAS_MIN_HORNO);
+    CargaAplazable amasadora("Amasadora", POTENCIA_AMASADORA, HORAS_MIN_AMASADORA);
+
+    // Negocio: integra medidor (composicion) y mercado (asociacion)
+    Negocio panaderia("Panaderia La Especial", &mercado);
+
+    // Agregacion: se anaden las cargas creadas independientemente
+    panaderia.agregarCarga(&refrigeracion);
+    panaderia.agregarCarga(&horno);
+    panaderia.agregarCarga(&amasadora);
+
+    panaderia.mostrarConfiguracion();
+
+    // Variables de lectura manual (inicializadas con valores por defecto)
+    int hora = 12;
+    float precio = 550.0;
+    float embalses = 45.0;
+    bool haySimulacion = false;
+    int opcion = -1;
+
+    // Menu interactivo mediante ciclo do-while
+    do {
+        cout << "\n=========== MENU WATTCONTROL (PANADERIA) ===========" << endl;
+        cout << "1. Ingresar lectura manual (hora, embalses, precio)" << endl;
+        cout << "2. Evaluar decision de cada carga" << endl;
+        cout << "3. Simular un dia completo (24 h)" << endl;
+        cout << "4. Ver resumen de la ultima simulacion" << endl;
+        cout << "0. Salir" << endl;
+        cout << "Seleccione una opcion: ";
+        cin >> opcion;
+
+        switch (opcion) {
+        // CASO 1: Ingreso de datos con validacion individual mediante do-while
+        case 1:
+            // Validacion de la hora (0 a 23)
+            do {
+                cout << "Hora del dia (0 a 23): ";
+                cin >> hora;
+                if (hora < 0 || hora > 23) {
+                    cout << "  [ERROR] La hora debe estar en el rango de 0 a 23." << endl;
+                }
+            } while (hora < 0 || hora > 23);
+
+            // Validacion del nivel de embalses (0 a 100 %)
+            do {
+                cout << "Nivel de embalses nacional (0 a 100 %): ";
+                cin >> embalses;
+                if (embalses < 0.0 || embalses > 100.0) {
+                    cout << "  [ERROR] El porcentaje de embalses debe estar entre 0 y 100." << endl;
+                }
+            } while (embalses < 0.0 || embalses > 100.0);
+
+            // Validacion del precio de bolsa (> 0 COP/kWh)
+            do {
+                cout << "Precio de bolsa (COP/kWh, mayor a 0): ";
+                cin >> precio;
+                if (precio <= 0.0) {
+                    cout << "  [ERROR] El precio de energia debe ser un valor positivo." << endl;
+                }
+            } while (precio <= 0.0);
+
+            cout << ">> Lectura manual registrada y validada correctamente <<" << endl;
+            break;
+
+        // CASO 2: Evaluacion polimorfica de las decisiones con la lectura actual
+        case 2:
+            panaderia.evaluarManual(hora, precio, embalses);
+            break;
+
+        // CASO 3: Simulacion horaria de 24 horas
+        case 3:
+            panaderia.simularDia();
+            haySimulacion = true;
+            break;
+
+        // CASO 4: Resumen de resultados, alertas y ahorro
+        case 4:
+            if (haySimulacion) {
+                panaderia.resumen();
+            } else {
+                cout << "[AVISO] Aun no se ha ejecutado ninguna simulacion. Seleccione la opcion 3 primero." << endl;
+            }
+            break;
+
+        // CASO 0: Finalizar ejecucion
+        case 0:
+            cout << "Finalizando ejecucion de WattControl. Buen dia." << endl;
+            break;
+
+        default:
+            cout << "[ERROR] Opcion no valida. Intente nuevamente." << endl;
+            break;
+        }
+
+    } while (opcion != 0);
+
+    return 0;
+}
