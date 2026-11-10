@@ -116,7 +116,6 @@ public:
 // ============================================================================
 // HERENCIA: CargaAplazable ES UNA Carga 
 // ============================================================================
-// Equipos de produccion que pueden postergarse para horas economicas.
 // REGLA 2: Se evitan en horas pico, si el precio supera el umbral caro
 // o si los embalses estan en situacion critica.
 class CargaAplazable : public Carga {
@@ -130,8 +129,7 @@ public:
 
     int getHorasMinimas() { return horasMinimas; }
 
-    // Sobrescritura polimorfica (override) con operadores logicos compuestos:
-    // && (Y), || (O), ! (NO)
+    // Sobrescritura polimorfica (override) con operadores logicos compuestos
     bool debeEncender(int hora, float precio, float embalses) override {
         bool esPico = (hora >= PICO_INICIO && hora <= PICO_FIN);
         bool esPrecioCaro = (precio >= PRECIO_CARO);
@@ -181,11 +179,11 @@ public:
 // ============================================================================
 // CLASE Mercado: ASOCIACION con Negocio
 // ============================================================================
-// Simula el mercado mayorista de energia (precios de bolsa segun XM Colombia)
+// Simula el mercado mayorista de energia
 // y el estado hidrologico nacional (nivel de embalses).
 class Mercado {
 public:
-    // Retorna el precio del kWh segun la franja horaria colombiana
+    // Retorna el precio del kWh segun la franja horaria
     float precioHora(int hora) {
         int minimo, maximo;
         if (hora <= 6) {               // Madrugada
@@ -315,7 +313,7 @@ public:
             // Buscar la carga aplazable encendida con mayor consumo y apagarla
             int idxMayor = -1;
             float maxPot = 0.0;
-            // Omitimos la primera (cargas[0] es critica)
+            // Se omite la primera (cargas[0] es critica)
             for (int i = 1; i < numCargas; i++) {
                 if (cargas[i]->estaEncendido() && cargas[i]->getPotencia() > maxPot) {
                     maxPot = cargas[i]->getPotencia();
@@ -489,7 +487,7 @@ public:
 // FUNCION PRINCIPAL Y MENU DE USUARIO [PERSONA 1]
 // ============================================================================
 int main() {
-    // Fijar semilla pseudoaleatoria reproducible para la evaluacion del docente
+    // Fijar semilla pseudoaleatoria reproducible
     srand(SEMILLA);
 
     // Instanciacion de objetos del sistema
@@ -505,7 +503,7 @@ int main() {
     // Negocio: integra medidor (composicion) y mercado (asociacion)
     Negocio panaderia("Panaderia La Especial", &mercado);
 
-    // Agregacion: se anaden las cargas creadas independientemente
+    // Agregacion: se añaden las cargas creadas independientemente
     panaderia.agregarCarga(&refrigeracion);
     panaderia.agregarCarga(&horno);
     panaderia.agregarCarga(&amasadora);
