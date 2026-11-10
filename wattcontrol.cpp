@@ -93,3 +93,56 @@ public:
     bool estaEncendido() { return encendida; }
     int getHorasUso() { return horasUso; }
 };
+
+// ============================================================================
+// HERENCIA: CargaCritica ES UNA Carga 
+// ============================================================================
+// Cargas vitales para la panaderia (Refrigeracion de levaduras y lacteos).
+// REGLA 1: NUNCA se apagan por precio, horario ni nivel de embalses.
+class CargaCritica : public Carga {
+public:
+    CargaCritica(string n, float p) : Carga(n, p) {}
+
+    // Sobrescritura polimorfica (override): siempre debe estar encendida
+    bool debeEncender(int hora, float precio, float embalses) override {
+        // Ignora parametros; la cadena de frio no puede romperse
+        (void)hora;
+        (void)precio;
+        (void)embalses;
+        return true; 
+    }
+};
+
+// ============================================================================
+// HERENCIA: CargaAplazable ES UNA Carga 
+// ============================================================================
+// Equipos de produccion que pueden postergarse para horas economicas.
+// REGLA 2: Se evitan en horas pico, si el precio supera el umbral caro
+// o si los embalses estan en situacion critica.
+class CargaAplazable : public Carga {
+private:
+    int horasMinimas; // Horas que idealmente necesita operar al dia
+
+public:
+    CargaAplazable(string n, float p, int hMin) : Carga(n, p) {
+        horasMinimas = hMin;
+    }
+
+    int getHorasMinimas() { return horasMinimas; }
+
+    // Sobrescritura polimorfica (override) con operadores logicos compuestos:
+    // && (Y), || (O), ! (NO)
+    bool debeEncender(int hora, float precio, float embalses) override {
+        bool esPico = (hora >= PICO_INICIO && hora <= PICO_FIN);
+        bool esPrecioCaro = (precio >= PRECIO_CARO);
+        bool esEmbalseCritico = (embalses < UMBRAL_EMBALSES_CRITICO);
+
+        // Si se encuentra en cualquiera de estas condiciones desfavorables, se aplaza
+        if (esPico || esPrecioCaro || esEmbalseCritico) {
+            return false;
+        }
+
+        // En condiciones normales y con tarifa favorable, se autoriza encendido
+        return true;
+    }
+};
