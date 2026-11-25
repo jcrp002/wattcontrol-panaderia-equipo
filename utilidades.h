@@ -15,7 +15,7 @@ float sumar(const float datos[], int n) {
     return total;
 }
 
-// 2. SOBRECARGA: Sumar arreglo de enteros (ej. horas cumplidas o dias de produccion)
+// 2. SOBRECARGA: Sumar arreglo de enteros
 int sumar(const int datos[], int n) {
     int total = 0;
     for (int i = 0; i < n; i++) {
