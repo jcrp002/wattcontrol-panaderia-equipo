@@ -1,39 +1,45 @@
-#ifndef NEGOCIO_H
-#define NEGOCIO_H
+#pragma once
 
-#include <iostream>
-#include <iomanip>
-#include <string>
-#include "Constantes.h"
+#include "configuracion.h"
+#include "utilidades.h"
 #include "Carga.h"
 #include "CargaAplazable.h"
 #include "Medidor.h"
 #include "Mercado.h"
 
 // ============================================================================
-// CLASE Negocio: AGREGACION de Cargas, COMPOSICION de Medidor, ASOCIACION de Mercado
+// CLASE Negocio: AGREGACION, COMPOSICION, ASOCIACION Y MATRIZ DE COSTOS
 // ============================================================================
 class Negocio {
 private:
-    std::string nombre;
-    Medidor medidor;             // Composicion
-    Carga* cargas[MAX_CARGAS];   // Agregacion
-    int numCargas;
-    Mercado* mercado;            // Asociacion
+    string nombre;
+    string responsable;
 
-    float costoConGestor;
-    float costoSinGestor;
-    float energiaConGestor;
-    float energiaSinGestor;
-    int horasSimuladas;
-    int fallasLectura;
+    Medidor medidor;                   // COMPOSICION
+    Carga* cargas[MAX_CARGAS];         // AGREGACION
+    int numCargas;
+    Mercado* mercado;                  // ASOCIACION
+
+    // MATRICES DE COSTOS SEMANALES [7 dias][24 horas]
+    float costosCon[DIAS_SEMANA][HORAS_DIA];
+    float costosSin[DIAS_SEMANA][HORAS_DIA];
+
+    // Contadores de dias con produccion completa
+    int diasCumplidosHorno;
+    int diasCumplidosAmasadora;
+    bool semanaSimulada;
 
 public:
-    Negocio(std::string n, Mercado* m)
-        : nombre(n), numCargas(0), mercado(m),
-          costoConGestor(0.0f), costoSinGestor(0.0f),
-          energiaConGestor(0.0f), energiaSinGestor(0.0f),
-          horasSimuladas(0), fallasLectura(0) {}
+    Negocio(string n, string resp, Mercado* m)
+        : nombre(n), responsable(resp), numCargas(0), mercado(m),
+          diasCumplidosHorno(0), diasCumplidosAmasadora(0), semanaSimulada(false) {
+        for (int d = 0; d < DIAS_SEMANA; d++) {
+            for (int h = 0; h < HORAS_DIA; h++) {
+                costosCon[d][h] = 0.0f;
+                costosSin[d][h] = 0.0f;
+            }
+        }
+    }
 
     void agregarCarga(Carga* c) {
         if (numCargas < MAX_CARGAS) {
@@ -42,41 +48,41 @@ public:
     }
 
     void mostrarConfiguracion() {
-        std::cout << "=====================================================" << std::endl;
-        std::cout << " Negocio: " << nombre << " (Panaderia)" << std::endl;
-        std::cout << " Potencia Contratada: " << POTENCIA_CONTRATADA << " kW" << std::endl;
-        std::cout << " Equipos registrados en el gestor:" << std::endl;
+        linea(60, '=');
+        cout << " GESTOR ENERGETICO WATTCONTROL - EA3 SEMANA REAL" << endl;
+        cout << " Negocio: " << nombre << " | Responsable: " << responsable << endl;
+        cout << " Potencia Contratada: " << POTENCIA_CONTRATADA << " kW" << endl;
+        linea(60);
+        cout << " Equipos registrados en el gestor:" << endl;
         for (int i = 0; i < numCargas; i++) {
-            std::cout << "  - " << std::setw(18) << std::left << cargas[i]->getNombre()
-                      << std::right << std::setw(5) << cargas[i]->getPotencia() << " kW" << std::endl;
+            cout << "  - " << setw(18) << left << cargas[i]->getNombre()
+                 << right << setw(5) << cargas[i]->getPotencia() << " kW" << endl;
         }
-        std::cout << "=====================================================" << std::endl;
+        linea(60, '=');
     }
 
-    // Evaluacion manual polimorfica (Opcion 2)
+    // Evaluacion manual de una sola hora (Opcion 1)
     void evaluarManual(int hora, float precio, float embalses) {
-        std::cout << "\nEvaluando decision de cada equipo para la lectura:" << std::endl;
-        std::cout << "  Hora: " << hora << ":00 | Precio: $" << precio 
-                  << " COP/kWh | Embalses: " << embalses << " %" << std::endl;
-        std::cout << "-----------------------------------------------------" << std::endl;
-        
-        float potenciaDemandada = 0.0f;
+        cout << "\nEvaluando decisiones para lectura manual:" << endl;
+        cout << " Hora: " << hora << ":00 | Precio: $" << precio 
+             << " COP/kWh | Embalses: " << embalses << " %" << endl;
+        linea(50);
+        float potTotal = 0.0f;
         for (int i = 0; i < numCargas; i++) {
-            bool encender = cargas[i]->debeEncender(hora, precio, embalses);
-            std::cout << "  " << std::setw(18) << std::left << cargas[i]->getNombre() << std::right;
-            if (encender) {
-                std::cout << "[ENCENDER]" << std::endl;
-                potenciaDemandada += cargas[i]->getPotencia();
+            bool on = cargas[i]->debeEncender(hora, precio, embalses);
+            cout << "  " << setw(18) << left << cargas[i]->getNombre() << right;
+            if (on) {
+                cout << "[ENCENDER]" << endl;
+                potTotal += cargas[i]->getPotencia();
             } else {
-                std::cout << "[APAGAR / APLAZAR]" << std::endl;
+                cout << "[APAGAR / APLAZAR]" << endl;
             }
         }
-        std::cout << "  Potencia total estimada: " << potenciaDemandada << " kW / " 
-                  << POTENCIA_CONTRATADA << " kW contratados." << std::endl;
+        cout << "  Potencia requerida: " << potTotal << " kW / " 
+             << POTENCIA_CONTRATADA << " kW contratados." << endl;
     }
 
-    // REGLA 6: Control de potencia contratada.
-    // Si la potencia encendida supera la contratada, desconecta la aplazable mas pesada.
+    // REGLA 6: Control de potencia contratada
     void aplicarControlPotencia(int hora) {
         float sumaPotencia = 0.0f;
         for (int i = 0; i < numCargas; i++) {
@@ -86,13 +92,9 @@ public:
         }
 
         if (sumaPotencia > POTENCIA_CONTRATADA) {
-            std::cout << " [ALERTA HORA " << std::setw(2) << hora << "] Sobrecarga detectada (" 
-                      << sumaPotencia << " kW > " << POTENCIA_CONTRATADA 
-                      << " kW). Desconectando carga aplazable de mayor potencia..." << std::endl;
-            
             int idxMayor = -1;
             float maxPot = 0.0f;
-            // Se omite cargas[0] porque es critica y no debe desconectarse
+            // Desconectar la aplazable mas pesada (omite cargas[0] que es critica)
             for (int i = 1; i < numCargas; i++) {
                 if (cargas[i]->estaEncendido() && cargas[i]->getPotencia() > maxPot) {
                     maxPot = cargas[i]->getPotencia();
@@ -101,163 +103,165 @@ public:
             }
             if (idxMayor != -1) {
                 cargas[idxMayor]->apagar();
-                std::cout << "   -> " << cargas[idxMayor]->getNombre() 
-                          << " apagado preventivamente por limite de potencia." << std::endl;
             }
         }
     }
 
-    // Simulacion de 24 horas continuas (Opcion 3)
-    void simularDia() {
+    // SIMULAR LA SEMANA REAL DE XM (7 dias x 24 horas = 168 horas)
+    void simularSemana() {
         medidor.reiniciar();
-        costoConGestor = 0.0f;
-        costoSinGestor = 0.0f;
-        energiaConGestor = 0.0f;
-        energiaSinGestor = 0.0f;
-        horasSimuladas = 0;
-        fallasLectura = 0;
+        diasCumplidosHorno = 0;
+        diasCumplidosAmasadora = 0;
 
-        for (int i = 0; i < numCargas; i++) {
-            cargas[i]->reiniciar();
+        for (int d = 0; d < DIAS_SEMANA; d++) {
+            // Cada nuevo dia reinicia el acumulador de horas de los equipos
+            for (int i = 0; i < numCargas; i++) {
+                cargas[i]->reiniciar();
+            }
+
+            for (int h = 0; h < HORAS_DIA; h++) {
+                // Consulta el precio real de XM desde la matriz en Mercado
+                float precio = mercado->precioHora(d, h);
+                float embalses = mercado->nivelEmbalses(h);
+
+                // Escenario SIN GESTOR: todo encendido las 24 horas
+                float costoHoraSin = 0.0f;
+                for (int i = 0; i < numCargas; i++) {
+                    costoHoraSin += cargas[i]->getPotencia() * precio;
+                }
+                costosSin[d][h] = costoHoraSin;
+
+                // Escenario CON GESTOR:
+                // Evaluacion polimorfica
+                for (int i = 0; i < numCargas; i++) {
+                    if (cargas[i]->debeEncender(h, precio, embalses)) {
+                        cargas[i]->encender();
+                    } else {
+                        cargas[i]->apagar();
+                    }
+                }
+
+                // Control de potencia contratada (Regla 6)
+                aplicarControlPotencia(h);
+
+                // Calculo de costo real y acumulacion de horas efectivas
+                float costoHoraCon = 0.0f;
+                float kwhHoraCon = 0.0f;
+                for (int i = 0; i < numCargas; i++) {
+                    if (cargas[i]->estaEncendido()) {
+                        cargas[i]->acumularHora();
+                        costoHoraCon += cargas[i]->costoHora(precio);
+                        kwhHoraCon += cargas[i]->getPotencia();
+                    }
+                }
+
+                costosCon[d][h] = costoHoraCon;
+                medidor.registrarConsumo(kwhHoraCon, costoHoraCon);
+            }
+
+            // Auditoria de horas minimas al cierre de cada dia
+            if (cargas[1]->getHorasUso() >= HORAS_MIN_HORNO) diasCumplidosHorno++;
+            if (cargas[2]->getHorasUso() >= HORAS_MIN_AMASADORA) diasCumplidosAmasadora++;
         }
 
-        std::cout << std::fixed << std::setprecision(0);
-        std::cout << "\n================ SIMULACION 24 HORAS: WATTCONTROL PANADERIA ================" << std::endl;
-        std::cout << std::setw(5) << "Hora" << std::setw(8) << "Precio" << std::setw(9) << "Embalse";
-        for (int i = 0; i < numCargas; i++) {
-            std::cout << std::setw(13) << cargas[i]->getNombre().substr(0, 11);
-        }
-        std::cout << std::setw(10) << "Costo(COP)" << std::endl;
-        std::cout << "----------------------------------------------------------------------------" << std::endl;
-
-        for (int h = 0; h < HORAS_DIA; h++) {
-            float precio = mercado->precioHora(h);
-            float embalses = mercado->nivelEmbalses(h);
-
-            // Escenario SIN GESTOR: todo encendido indiscriminadamente
-            for (int i = 0; i < numCargas; i++) {
-                costoSinGestor += cargas[i]->getPotencia() * precio;
-                energiaSinGestor += cargas[i]->getPotencia();
-            }
-
-            // INSTRUCCION DE CONTROL BREAK:
-            // Requiere SIMULTANEAMENTE precio > 1500 COP/kWh Y embalses < 40 %
-            if (precio > PRECIO_ESCASEZ && embalses < UMBRAL_EMBALSES_CRITICO) {
-                std::cout << std::setw(5) << h << std::setw(8) << precio 
-                          << "   [BREAK] EMERGENCIA DE RACIONAMIENTO (Precio > " << PRECIO_ESCASEZ 
-                          << " COP y Embalses < " << UMBRAL_EMBALSES_CRITICO << "%). Simulacion detenida." << std::endl;
-                break;
-            }
-
-            horasSimuladas++;
-
-            // INSTRUCCION DE CONTROL CONTINUE: Falla de medicion (1 de cada 20 lecturas)
-            if (rand() % FALLA_CADA == 0) {
-                fallasLectura++;
-                // En falla, solo opera la carga critica
-                cargas[0]->encender();
-                cargas[0]->acumularHora();
-                for (int i = 1; i < numCargas; i++) {
-                    cargas[i]->apagar();
-                }
-                float costoFalla = cargas[0]->costoHora(precio);
-                costoConGestor += costoFalla;
-                energiaConGestor += cargas[0]->getPotencia();
-                medidor.registrarConsumo(cargas[0]->getPotencia(), costoFalla);
-
-                std::cout << std::setw(5) << h << std::setw(8) << "--" << std::setw(9) << "--"
-                          << "   [CONTINUE] Falla telemedicion: Solo refrigeracion activa." << std::endl;
-                continue;
-            }
-
-            // Escenario CON GESTOR INTELIGENTE:
-            // 1. Evaluacion polimorfica de cada equipo
-            for (int i = 0; i < numCargas; i++) {
-                if (cargas[i]->debeEncender(h, precio, embalses)) {
-                    cargas[i]->encender();
-                } else {
-                    cargas[i]->apagar();
-                }
-            }
-
-            // 2. Aplicacion de la Regla 6: Control de potencia contratada
-            aplicarControlPotencia(h);
-
-            // 3. Calculo de costos y acumulacion real de horas efectivas
-            float costoHoraActual = 0.0f;
-            float energiaHoraActual = 0.0f;
-            for (int i = 0; i < numCargas; i++) {
-                if (cargas[i]->estaEncendido()) {
-                    cargas[i]->acumularHora(); // Solo suma la hora si REALMENTE quedo encendida
-                    costoHoraActual += cargas[i]->costoHora(precio);
-                    energiaHoraActual += cargas[i]->getPotencia();
-                }
-            }
-
-            costoConGestor += costoHoraActual;
-            energiaConGestor += energiaHoraActual;
-            medidor.registrarConsumo(energiaHoraActual, costoHoraActual);
-
-            // Impresion de fila en la tabla
-            std::cout << std::setw(5) << h << std::setw(8) << precio << std::setw(8) << embalses << "%";
-            for (int i = 0; i < numCargas; i++) {
-                std::cout << std::setw(13) << (cargas[i]->estaEncendido() ? "ON" : "off");
-            }
-            std::cout << std::setw(10) << costoHoraActual << std::endl;
-        }
-
-        std::cout << "----------------------------------------------------------------------------" << std::endl;
-        std::cout << "Simulacion completada. Vea el resumen con la opcion 4." << std::endl;
+        semanaSimulada = true;
+        cout << "\n>> Simulacion de la semana real completada exitosamente <<" << endl;
+        cout << "   Total horas evaluadas: 7 dias x 24 horas = 168 horas." << endl;
     }
 
-    // Resumen financiero y operativo (Opcion 4)
-    void resumen() {
-        std::cout << std::fixed << std::setprecision(0);
-        std::cout << "\n============================================================" << std::endl;
-        std::cout << "        RESUMEN FINANCIERO Y ENERGETICO - WATTCONTROL        " << std::endl;
-        std::cout << "                   Panaderia Central                        " << std::endl;
-        std::cout << "============================================================" << std::endl;
-        std::cout << "Horas simuladas: " << horasSimuladas << " de " << HORAS_DIA 
-                  << " | Fallas de medicion controladas: " << fallasLectura << std::endl;
-        std::cout << "\n--- Detalle por Equipo ---" << std::endl;
-        
-        bool produccionCompleta = true;
-        for (int i = 0; i < numCargas; i++) {
-            float kwh = cargas[i]->getHorasUso() * cargas[i]->getPotencia();
-            std::cout << " - " << std::setw(18) << std::left << cargas[i]->getNombre() << std::right
-                      << std::setw(3) << cargas[i]->getHorasUso() << " h operadas ("
-                      << std::setw(5) << kwh << " kWh consumidos)" << std::endl;
+    // REPORTE SEMANAL DETALLADO (Opcion 3)
+    void reporteSemanal() {
+        if (!semanaSimulada) {
+            cout << "[AVISO] Primero debe simular la semana con la opcion 2." << endl;
+            return;
+        }
 
-            if (i > 0) { // Cargas aplazables
-                CargaAplazable* cap = dynamic_cast<CargaAplazable*>(cargas[i]);
-                if (cap && cargas[i]->getHorasUso() < cap->getHorasMinimas()) {
-                    std::cout << "   [ALERTA PRODUCCION] " << cargas[i]->getNombre() 
-                              << " no alcanzo el minimo requerido de " << cap->getHorasMinimas() << " horas." << std::endl;
-                    produccionCompleta = false;
+        float totalesCon[DIAS_SEMANA];
+        float totalesSin[DIAS_SEMANA];
+
+        cout << fixed << setprecision(0);
+        cout << "\n";
+        linea(68, '=');
+        cout << "           REPORTE FINANCIERO SEMANAL - WATTCONTROL" << endl;
+        cout << " Negocio: " << nombre << " | Responsable: " << responsable << endl;
+        cout << " Datos reales XM: 21 al 27 de Septiembre de 2026" << endl;
+        linea(68, '=');
+        cout << setw(10) << left << "Dia" 
+             << setw(16) << right << "Sin Gestor($)" 
+             << setw(16) << "Con Gestor($)" 
+             << setw(14) << "Ahorro($)" 
+             << setw(10) << "Ahorro%" << endl;
+        linea(68);
+
+        for (int d = 0; d < DIAS_SEMANA; d++) {
+            // Uso de la funcion libre sobrecargada sumar()
+            totalesCon[d] = sumar(costosCon[d], HORAS_DIA);
+            totalesSin[d] = sumar(costosSin[d], HORAS_DIA);
+            float ahorroDia = totalesSin[d] - totalesCon[d];
+            float pctDia = (totalesSin[d] > 0) ? (ahorroDia / totalesSin[d] * 100.0f) : 0.0f;
+
+            cout << setw(10) << left << DIAS[d]
+                 << setw(16) << right << totalesSin[d]
+                 << setw(16) << totalesCon[d]
+                 << setw(14) << ahorroDia
+                 << setw(9) << setprecision(1) << pctDia << "%" 
+                 << setprecision(0) << endl;
+        }
+        linea(68);
+
+        // Identificacion de picos mediante posicionMaximo()
+        int idxDiaCaro = posicionMaximo(totalesSin, DIAS_SEMANA);
+
+        // Buscar la hora con el precio mas alto de toda la semana
+        int diaPico = 0;
+        int horaPico = 0;
+        float maxPrecio = 0.0f;
+        for (int d = 0; d < DIAS_SEMANA; d++) {
+            for (int h = 0; h < HORAS_DIA; h++) {
+                float p = mercado->precioHora(d, h);
+                if (p > maxPrecio) {
+                    maxPrecio = p;
+                    diaPico = d;
+                    horaPico = h;
                 }
             }
         }
 
-        if (produccionCompleta) {
-            std::cout << "\n>> Cumplimiento operativo: TANDAS DE PAN COMPLETADAS AL 100% <<" << std::endl;
+        float totalSemanaCon = sumar(totalesCon, DIAS_SEMANA);
+        float totalSemanaSin = sumar(totalesSin, DIAS_SEMANA);
+        float ahorroSemanal  = totalSemanaSin - totalSemanaCon;
+        float pctAhorroSem   = (totalSemanaSin > 0) ? (ahorroSemanal / totalSemanaSin * 100.0f) : 0.0f;
+
+        // Proyeccion mensual con la funcion propia proyectarMes()
+        float proyMensualCon = proyectarMes(totalSemanaCon);
+        float proyMensualSin = proyectarMes(totalSemanaSin);
+        float proyAhorroMes  = proyectarMes(ahorroSemanal);
+
+        cout << "\n--- ANALISIS DE PICOS Y DIAS CRITICOS ---" << endl;
+        cout << " - Dia mas costoso de la semana: " << DIAS[idxDiaCaro] 
+             << " ($" << totalesSin[idxDiaCaro] << " COP sin gestor)" << endl;
+        cout << " - Hora pico mas cara de la semana: " << DIAS[diaPico] 
+             << " a las " << horaPico << ":00 h ($" << maxPrecio << " COP/kWh)" << endl;
+        cout << " - Promedio diario con gestor:   $" << promedio(totalesCon, DIAS_SEMANA) << " COP" << endl;
+
+        cout << "\n--- CUMPLIMIENTO OPERATIVO DE PRODUCCION (7 DIAS) ---" << endl;
+        cout << " - Horno Rotativo (meta >= 6h/dia):  " << diasCumplidosHorno << " de 7 dias cumplidos." << endl;
+        cout << " - Amasadora (meta >= 4h/dia):      " << diasCumplidosAmasadora << " de 7 dias cumplidos." << endl;
+        if (diasCumplidosHorno == 7 && diasCumplidosAmasadora == 7) {
+            cout << " >> ESTADO: 100% DE LAS TANDAS DE PAN ASEGURADAS EN LA SEMANA <<" << endl;
         } else {
-            std::cout << "\n>> Cumplimiento operativo: ALERTA DE PRODUCCION PARCIAL <<" << std::endl;
+            cout << " >> ESTADO: ALERTA DE PRODUCCION PARCIAL EN ALGUNOS DIAS <<" << endl;
         }
 
-        std::cout << "\n--- Balance Energetico y Economico ---" << std::endl;
-        std::cout << "Energia sin gestor:  " << std::setw(8) << energiaSinGestor << " kWh" << std::endl;
-        std::cout << "Energia con gestor:  " << std::setw(8) << medidor.getEnergiaTotal() << " kWh" << std::endl;
-        std::cout << "Costo sin gestor:   $" << std::setw(8) << costoSinGestor << " COP" << std::endl;
-        std::cout << "Costo con gestor:   $" << std::setw(8) << costoConGestor << " COP" << std::endl;
-        
-        float ahorroCOP = costoSinGestor - costoConGestor;
-        float ahorroPorc = (costoSinGestor > 0) ? (ahorroCOP / costoSinGestor * 100.0f) : 0.0f;
-
-        std::cout << "------------------------------------------------------------" << std::endl;
-        std::cout << "AHORRO ECONOMICO:   $" << std::setw(8) << ahorroCOP << " COP (" 
-                  << std::setprecision(1) << ahorroPorc << " %)" << std::endl;
-        std::cout << "============================================================" << std::endl;
+        cout << "\n--- BALANCE CONSOLIDADO Y PROYECCION FINANCIERA ---" << endl;
+        cout << " Costo total semana SIN gestor:   $" << setw(10) << totalSemanaSin << " COP" << endl;
+        cout << " Costo total semana CON gestor:   $" << setw(10) << totalSemanaCon << " COP" << endl;
+        cout << " AHORRO ECONOMICO SEMANAL:       $" << setw(10) << ahorroSemanal 
+             << " COP (" << setprecision(1) << pctAhorroSem << " %)" << setprecision(0) << endl;
+        linea(68);
+        cout << " Proyeccion mensual SIN gestor:  $" << setw(10) << proyMensualSin << " COP" << endl;
+        cout << " Proyeccion mensual CON gestor:  $" << setw(10) << proyMensualCon << " COP" << endl;
+        cout << " PROYECCION AHORRO MENSUAL:      $" << setw(10) << proyAhorroMes << " COP" << endl;
+        linea(68, '=');
     }
 };
-
-#endif // NEGOCIO_H
