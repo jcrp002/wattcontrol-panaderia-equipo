@@ -1,5 +1,4 @@
-#ifndef MEDIDOR_H
-#define MEDIDOR_H
+#pragma once
 
 // ============================================================================
 // CLASE Medidor: COMPOSICION con Negocio
@@ -25,5 +24,3 @@ public:
     float getEnergiaTotal() const { return energiaTotalKWh; }
     float getCostoTotal() const { return costoTotalCOP; }
 };
-
-#endif // MEDIDOR_H

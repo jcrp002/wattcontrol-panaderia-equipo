@@ -1,15 +1,13 @@
-#ifndef CARGAAPLAZABLE_H
-#define CARGAAPLAZABLE_H
+#pragma once
 
 #include "Carga.h"
-#include "Constantes.h"
+#include "configuracion.h"
 
 // ============================================================================
 // CLASE DERIVADA: CargaAplazable (Herencia de Carga)
 // ============================================================================
-// REGLAS 2, 3, 4 y 5: Se aplaza si es hora pico, precio caro o embalses < 40%.
-// COORDINACION INTELIGENTE: Si ya cumplio sus horas minimas requeridas del dia,
-// cede el turno para permitir que otros equipos operen sin violar la potencia contratada.
+// REGLAS 2, 3, 4 y 5: Aplazamiento compuesto ante pico, precio caro o embalses bajos.
+// COORDINACION DE PRODUCCION: Al cumplir sus horas minimas, cede el turno para evitar sobrecargas.
 class CargaAplazable : public Carga {
 private:
     int horasMinimas;
@@ -24,13 +22,11 @@ public:
         bool esPrecioCaro = (precio >= PRECIO_CARO);
         bool esEmbalseCritico = (embalses < UMBRAL_EMBALSES_CRITICO);
 
-        // Aplazamiento ante condiciones desfavorables
         if (esPico || esPrecioCaro || esEmbalseCritico) {
             return false;
         }
 
-        // Coordinacion de demanda: una vez completadas sus horas diarias de labor,
-        // se apaga para liberar potencia en la panaderia
+        // Si ya completo su cuota requerida en el dia, cede potencia
         if (horasMinimas > 0 && horasUso >= horasMinimas) {
             return false;
         }
@@ -38,5 +34,3 @@ public:
         return true;
     }
 };
-
-#endif // CARGAAPLAZABLE_H
