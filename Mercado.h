@@ -1,41 +1,41 @@
-#ifndef MERCADO_H
-#define MERCADO_H
+#pragma once
 
-#include <cstdlib>
-#include "Constantes.h"
+#include "configuracion.h"
 
 // ============================================================================
 // CLASE Mercado: ASOCIACION con Negocio
+// Matriz PRECIOS[7][24] con los precios reales de bolsa de XM (21-27 sep 2026)
 // ============================================================================
 class Mercado {
+private:
+    const float PRECIOS[DIAS_SEMANA][HORAS_DIA] = {
+        // Lun 21
+        {398,398,461,502,502,511,511,502,511,502,511,565,565,565,596,596,753,753,1093,1093,884,753,596,565},
+        // Mar 22
+        {415,415,421,499,499,538,538,510,499,499,538,573,538,573,661,712,1040,712,1611,837,860,712,661,661},
+        // Mie 23
+        {463,465,465,465,465,467,465,467,465,465,465,465,465,465,504,648,656,656,1612,1273,940,656,648,580},
+        // Jue 24
+        {569,569,569,569,569,569,569,569,569,495,569,569,569,569,712,712,712,712,1601,1601,928,712,712,712},
+        // Vie 25
+        {526,526,526,526,526,537,537,642,537,537,537,642,537,970,970,970,970,970,1603,1603,970,970,970,833},
+        // Sab 26
+        {584,584,598,603,603,640,640,603,598,598,598,705,705,705,705,705,705,705,1602,751,705,705,640,598},
+        // Dom 27
+        {456,570,518,609,609,609,570,456,456,456,456,456,456,456,609,609,641,644,890,890,890,817,644,620}
+    };
+
 public:
-    // Retorna precio aleatorio dentro de los rangos reales de XM utilizando constantes
-    float precioHora(int hora) {
-        int minimo, maximo;
-        if (hora <= FRANJA_MADRUGADA_FIN) {
-            minimo = PRECIO_MIN_MADRUGADA;
-            maximo = PRECIO_MAX_MADRUGADA;
-        } else if (hora <= FRANJA_MANANA_FIN) {
-            minimo = PRECIO_MIN_MANANA;
-            maximo = PRECIO_MAX_MANANA;
-        } else if (hora <= FRANJA_TARDE_FIN) {
-            minimo = PRECIO_MIN_TARDE;
-            maximo = PRECIO_MAX_TARDE;
-        } else if (hora <= FRANJA_PICO_FIN) {
-            minimo = PRECIO_MIN_PICO;
-            maximo = PRECIO_MAX_PICO;
-        } else {
-            minimo = PRECIO_MIN_NOCHE;
-            maximo = PRECIO_MAX_NOCHE;
+    // Retorna el precio real historico de XM de un dia (0 a 6) y hora (0 a 23)
+    float precioHora(int dia, int hora) const {
+        if (dia >= 0 && dia < DIAS_SEMANA && hora >= 0 && hora < HORAS_DIA) {
+            return PRECIOS[dia][hora];
         }
-        return minimo + rand() % (maximo - minimo + 1);
+        return 500.0f;
     }
 
-    // Simula nivel de embalses nacional
-    float nivelEmbalses(int hora) {
-        float variacion = (hora % EMBALSE_PERIODO_VAR) - EMBALSE_AMPLITUD_VAR;
-        return EMBALSE_NIVEL_BASE + variacion;
+    // Nivel de embalses util nacional para cada hora
+    float nivelEmbalses(int hora) const {
+        return 42.0f + ((hora % 5) - 2.0f);
     }
 };
-
-#endif // MERCADO_H
